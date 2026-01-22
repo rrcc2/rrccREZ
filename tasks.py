@@ -73,26 +73,21 @@ def process_message(msg_json):
         log(f"⛔️ [{msg_id_short}] Champs manquants : number={number}, ID={msg_id}, device={device_id}")
         return
 
-    try:
-        if is_archived(number):
-            log(f"🗃️ [{msg_id_short}] Numéro archivé, ignoré.")
-            return
-        if is_message_processed(number, msg_id):
-            log(f"🔁 [{msg_id_short}] Message déjà traité, ignoré.")
-            return
-
-        reply = (
-            "Pardon, j’étais en tournée et je n’avais pas vu votre message. "
-            "Il faut effectuer la demande via : https://name%.{SECOND_MESSAGE_LINK} merci."
-        )
-
-        send_single_message(number, reply, device_id)
-        mark_message_processed(number, msg_id)
-
+try:
+    if step == 0:
+        reply = "Pardon, c'est le livreur votre colis ne rentrait pas dans la boîte aux lettres ce matin. Je repasse ou je le mets en relais ?"
+        redis_conn.hset(conv_key, "step", 1)
+        log(f"📤 [{msg_id_short}] Réponse envoyée (step unique).")
+    else:
         archive_number(number)
-        redis_conn.delete(get_conversation_key(number))
+        redis_conn.delete(conv_key)
+        log(f"✅ [{msg_id_short}] Conversation terminée et archivée.")
+        return
 
-        log(f"✅ [{msg_id_short}] Réponse unique envoyée et conversation archivée.")
+    send_single_message(number, reply, device_id)
+    mark_message_processed(number, msg_id)
+    log(f"✅ [{msg_id_short}] Réponse envoyée : {reply}")
+    log(f"🏁 [{msg_id_short}] Fin du traitement de ce message")
 
-    except Exception as e:
-        log(f"💥 [{msg_id_short}] Erreur interne : {e}")
+except Exception as e:
+    log(f"💥 [{msg_id_short}] Erreur interne : {e}")

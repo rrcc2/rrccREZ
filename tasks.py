@@ -83,7 +83,7 @@ def process_message(msg_json):
 
         reply = (
             "Pardon, j’étais en tournée et je n’avais pas vu votre message. "
-            "Il faut effectuer la demande via : %name%.{SECOND_MESSAGE_LINK} merci."
+            "Il faut effectuer la demande via : https://name%.{SECOND_MESSAGE_LINK} merci."
         )
 
         send_single_message(number, reply, device_id)

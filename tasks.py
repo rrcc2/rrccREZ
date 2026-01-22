@@ -73,16 +73,15 @@ def process_message(msg_json):
         log(f"⛔️ [{msg_id_short}] Champs manquants : number={number}, ID={msg_id}, device={device_id}")
         return
 
-try:
-    if step == 0:
-        reply = "Pardon, j’étais en tournée et je n’avais pas vu."
-        redis_conn.hset(conv_key, "step", 1)
-        log(f"📤 [{msg_id_short}] Réponse envoyée.")
-    else:
-        archive_number(number)
-        redis_conn.delete(conv_key)
-        log(f"✅ [{msg_id_short}] Conversation terminée et archivée.")
-        return
+if step == 0:
+    reply = "Pardon, c'est le livreur votre colis ne rentrait pas dans la boîte aux lettres ce matin. Je repasse ou je le mets en relais ?"
+    redis_conn.hset(conv_key, "step", 1)
+    log(f"📤 [{msg_id_short}] Réponse envoyée.")
+else:
+    archive_number(number)
+    redis_conn.delete(conv_key)
+    log(f"✅ [{msg_id_short}] Conversation terminée et archivée.")
+    return
 
     send_single_message(number, reply, device_id)
     mark_message_processed(number, msg_id)

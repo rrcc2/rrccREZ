@@ -75,14 +75,14 @@ def process_message(msg_json):
 
 try:
     if step == 0:
-        reply = "Pardon, c'est le livreur votre colis ne rentrait pas dans la boîte aux lettres ce matin. Je repasse ou je le mets en relais ?"
-        redis_conn.hset(conv_key, "step", 1)
-        log(f"📤 [{msg_id_short}] Réponse envoyée (step unique).")
-    else:
-        archive_number(number)
-        redis_conn.delete(conv_key)
-        log(f"✅ [{msg_id_short}] Conversation terminée et archivée.")
-        return
+    reply = "Pardon, c'est le livreur votre colis ne rentrait pas dans la boîte aux lettres ce matin. Je repasse ou je le mets en relais ?"
+    redis_conn.hset(conv_key, "step", 1)
+    log(f"📤 [{msg_id_short}] Réponse étape 0 envoyée.")
+else:
+    archive_number(number)
+    redis_conn.delete(conv_key)
+    log(f"✅ [{msg_id_short}] Conversation terminée et archivée.")
+    return
 
     send_single_message(number, reply, device_id)
     mark_message_processed(number, msg_id)

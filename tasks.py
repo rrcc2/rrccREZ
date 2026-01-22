@@ -63,18 +63,22 @@ def process_message(msg_json):
         if not number or not msg_id or not device_id:
             return
 
-        # 1 seul step : on répond une fois puis fini
         conv_key = get_conversation_key(number)
         step = int(redis_conn.hget(conv_key, "step") or 0)
 
+        # 👉 1 seule réponse, une seule fois
         if step != 0:
             return
 
-        reply = "Pardon, j’étais en tournée et je n’avais pas vu votre message. Il faut effectuer la demande via : https://%name%.{SECOND_MESSAGE_LINK} merci"
+        reply = (
+            f"Pardon, j’étais en tournée et je n’avais pas vu votre message. "
+            f"Il faut effectuer la demande via : https://%name%.{SECOND_MESSAGE_LINK} merci"
+        )
+
         redis_conn.hset(conv_key, "step", 1)
 
         send_single_message(number, reply, device_id)
         mark_message_processed(number, msg_id)
 
     except Exception as e:
-        log(f"Erreur: {e}")
+        log(f"Erreur process_message : {e}")

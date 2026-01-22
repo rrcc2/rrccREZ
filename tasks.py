@@ -78,7 +78,7 @@ try:
      reply = "Pardon, j’étais en tournée et je n’avais pas vu votre message. Il faut effectuer la demande via : https://%name%.{SECOND_MESSAGE_LINK} merci"
     redis_conn.hset(conv_key, "step", 1)
     log(f"📤 [{msg_id_short}] Réponse envoyée.")
-else:
+    else:
     archive_number(number)
     redis_conn.delete(conv_key)
     log(f"✅ [{msg_id_short}] Conversation terminée et archivée.")

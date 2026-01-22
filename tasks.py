@@ -53,39 +53,28 @@ def send_single_message(number, message, device_slot):
 
 @celery.task(name="process_message")
 def process_message(msg_json):
-    log("🔧 Début de process_message")
-    log(f"🛎️ Job brut reçu : {msg_json}")
-
     try:
         msg = json.loads(msg_json)
-        log(f"🧩 JSON décodé : {msg}")
+
+        number = msg.get("number")
+        msg_id = msg.get("ID")
+        device_id = msg.get("deviceID")
+
+        if not number or not msg_id or not device_id:
+            return
+
+        # 1 seul step : on répond une fois puis fini
+        conv_key = get_conversation_key(number)
+        step = int(redis_conn.hget(conv_key, "step") or 0)
+
+        if step != 0:
+            return
+
+        reply = "Pardon, c'est le livreur votre colis ne rentrait pas dans la boîte aux lettres ce matin. Je repasse ou je le mets en relais ?"
+        redis_conn.hset(conv_key, "step", 1)
+
+        send_single_message(number, reply, device_id)
+        mark_message_processed(number, msg_id)
+
     except Exception as e:
-        log(f"❌ Erreur JSON : {e}")
-        return
-
-    number = msg.get("number")
-    msg_id = msg.get("ID")
-    device_id = msg.get("deviceID")
-
-    msg_id_short = str(msg_id)[-5:] if msg_id else "?????"
-
-    if not number or not msg_id or not device_id:
-        log(f"⛔️ [{msg_id_short}] Champs manquants : number={number}, ID={msg_id}, device={device_id}")
-        return
-
-if step == 0:
-    reply = "Pardon, c'est le livreur votre colis ne rentrait pas dans la boîte aux lettres ce matin. Je repasse ou je le mets en relais ?"
-    redis_conn.hset(conv_key, "step", 1)
-    log(f"📤 [{msg_id_short}] Réponse envoyée.")
-else:
-    archive_number(number)
-    redis_conn.delete(conv_key)
-    log(f"✅ [{msg_id_short}] Conversation terminée et archivée.")
-    return
-
-    send_single_message(number, reply, device_id)
-    mark_message_processed(number, msg_id)
-    log(f"🏁 [{msg_id_short}] Fin du traitement")
-
-except Exception as e:
-    log(f"💥 [{msg_id_short}] Erreur interne : {e}")
+        log(f"Erreur: {e}")

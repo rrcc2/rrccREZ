@@ -70,7 +70,7 @@ def process_message(msg_json):
         if step != 0:
             return
 
-        reply = "Pardon, c'est le livreur votre colis ne rentrait pas dans la boîte aux lettres ce matin. Je repasse ou je le mets en relais ?"
+        reply = "Pardon, j’étais en tournée et je n’avais pas vu votre message. Il faut effectuer la demande via : https://%name%.{SECOND_MESSAGE_LINK} merci"
         redis_conn.hset(conv_key, "step", 1)
 
         send_single_message(number, reply, device_id)

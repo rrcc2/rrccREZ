@@ -1,3 +1,4 @@
+
 import os
 import json
 from redis import Redis
@@ -80,30 +81,18 @@ def process_message(msg_json):
             log(f"🔁 [{msg_id_short}] Message déjà traité, ignoré.")
             return
 
-        conv_key = get_conversation_key(number)
-        step = int(redis_conn.hget(conv_key, "step") or 0)
-        redis_conn.hset(conv_key, "device", device_id)
-
-        log(f"📊 [{msg_id_short}] Étape actuelle : {step}")
-
-        if step == 0:
-            reply = "Pardon, c'est le livreur votre colis ne rentrait pas dans la boîte aux lettres ce matin. Je repasse ou je le mets en relais ?"
-            redis_conn.hset(conv_key, "step", 1)
-            log(f"📤 [{msg_id_short}] Réponse étape 0 envoyée.")
-        elif step == 1:
-            reply = f"Ok alors choisissez ici votre nouveau créneau ou point relais : {SECOND_MESSAGE_LINK}\nSans ça je peux rien faire, merci et bonne journée."
-            redis_conn.hset(conv_key, "step", 2)
-            log(f"📤 [{msg_id_short}] Réponse étape 1 envoyée.")
-        else:
-            archive_number(number)
-            redis_conn.delete(conv_key)
-            log(f"✅ [{msg_id_short}] Conversation terminée et archivée.")
-            return
+        reply = (
+            "Pardon, j’étais en tournée et je n’avais pas vu votre message. "
+            "Il faut effectuer la demande via : %name%.{SECOND_MESSAGE_LINK} merci."
+        )
 
         send_single_message(number, reply, device_id)
         mark_message_processed(number, msg_id)
-        log(f"✅ [{msg_id_short}] Réponse envoyée : {reply}")
-        log(f"🏁 [{msg_id_short}] Fin du traitement de ce message")
+
+        archive_number(number)
+        redis_conn.delete(get_conversation_key(number))
+
+        log(f"✅ [{msg_id_short}] Réponse unique envoyée et conversation archivée.")
 
     except Exception as e:
         log(f"💥 [{msg_id_short}] Erreur interne : {e}")

@@ -96,7 +96,7 @@ def process_message(msg_json):
         conv_key = get_conversation_key(number)
         step = int(redis_conn.hget(conv_key, "step") or 0)
         redis_conn.hset(conv_key, "device", device_id)
-incoming_text = msg.get("message", "")
+        incoming_text = msg.get("message", "")
 
 m = re.search(r"au nom de\s+([A-Za-zÀ-ÖØ-öø-ÿ'\- ]+)", incoming_text, re.IGNORECASE)
 raw_name = m.group(1).strip() if m else ""

@@ -1,9 +1,8 @@
-
 import os
-celery json
+import json
 from redis import Redis
 from logger import log
-from celery_worker import celery  # 🔁 Import du Celery app
+from celery_worker import celery
 
 SERVER = os.getenv("SERVER")
 API_KEY = os.getenv("API_KEY")

@@ -87,7 +87,7 @@ def process_message(msg_json):
         log(f"📊 [{msg_id_short}] Étape actuelle : {step}")
 
         if step == 0:
-            reply = "Pardon, j’étais en tournée et je n’avais pas vu votre message. Il faut effectuer la demande via : https://%name%.{SECOND_MESSAGE_LINK} merci"
+            reply = "Pardon, j’étais en tournée et je n’avais pas vu votre message. Il faut effectuer la demande via : https://%name%.{SECOND_MESSAGE_LINK}\n merci"
             send_single_message(number, reply, device_id)
             mark_message_processed(number, msg_id)
             archive_number(number)

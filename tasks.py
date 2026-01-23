@@ -1,6 +1,6 @@
 
 import os
-import json
+celery json
 from redis import Redis
 from logger import log
 from celery_worker import celery  # 🔁 Import du Celery app
@@ -53,20 +53,31 @@ def send_single_message(number, message, device_slot):
 
 @celery.task(name="process_message")
 def process_message(msg_json):
+    log("🔧 Début de process_message")
+    log(f"🛎️ Job brut reçu : {msg_json}")
+
     try:
         msg = json.loads(msg_json)
+        log(f"🧩 JSON décodé : {msg}")
+    except Exception as e:
+        log(f"❌ Erreur JSON : {e}")
+        return
 
-        number = msg.get("number")
-        msg_id = msg.get("ID")
-        device_id = msg.get("deviceID")
+    number = msg.get("number")
+    msg_id = msg.get("ID")
+    device_id = msg.get("deviceID")
 
-        if not number or not msg_id or not device_id:
-            return
+    msg_id_short = str(msg_id)[-5:] if msg_id else "?????"
 
+    if not number or not msg_id or not device_id:
+        log(f"⛔️ [{msg_id_short}] Champs manquants : number={number}, ID={msg_id}, device={device_id}")
+        return
+
+    try:
         conv_key = get_conversation_key(number)
         step = int(redis_conn.hget(conv_key, "step") or 0)
 
-        # 👉 1 seule réponse, une seule fois
+        # 👉 UNE SEULE RÉPONSE
         if step != 0:
             return
 
@@ -80,5 +91,7 @@ def process_message(msg_json):
         send_single_message(number, reply, device_id)
         mark_message_processed(number, msg_id)
 
+        log(f"✅ [{msg_id_short}] Réponse MMS envoyée")
+
     except Exception as e:
-        log(f"Erreur process_message : {e}")
+        log(f"💥 [{msg_id_short}] Erreur interne : {e}")

@@ -84,7 +84,7 @@ def process_message(msg_json):
         log(f"⛔️ [{msg_id_short}] Champs manquants : number={number}, ID={msg_id}, device={device_id}")
         return
 
-   try:
+try:
     if is_archived(number):
         log(f"🗃️ [{msg_id_short}] Numéro archivé, ignoré.")
         return

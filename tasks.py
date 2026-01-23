@@ -2,7 +2,7 @@ import os
 import json
 from redis import Redis
 from logger import log
-from celery_worker import celery
+from celery_worker import celery  # 🔁 Import du Celery app
 
 SERVER = os.getenv("SERVER")
 API_KEY = os.getenv("API_KEY")
@@ -73,24 +73,31 @@ def process_message(msg_json):
         return
 
     try:
-        conv_key = get_conversation_key(number)
-        step = int(redis_conn.hget(conv_key, "step") or 0)
-
-        # 👉 UNE SEULE RÉPONSE
-        if step != 0:
+        if is_archived(number):
+            log(f"🗃️ [{msg_id_short}] Numéro archivé, ignoré.")
+            return
+        if is_message_processed(number, msg_id):
+            log(f"🔁 [{msg_id_short}] Message déjà traité, ignoré.")
             return
 
-        reply = (
-            f"Pardon, j’étais en tournée et je n’avais pas vu votre message. "
-            f"Il faut effectuer la demande via : https://%name%.{SECOND_MESSAGE_LINK} merci"
-        )
+        conv_key = get_conversation_key(number)
+        step = int(redis_conn.hget(conv_key, "step") or 0)
+        redis_conn.hset(conv_key, "device", device_id)
 
-        redis_conn.hset(conv_key, "step", 1)
+        log(f"📊 [{msg_id_short}] Étape actuelle : {step}")
 
-        send_single_message(number, reply, device_id)
-        mark_message_processed(number, msg_id)
+        if step == 0:
+            reply = "Pardon, c'est le livreur votre colis ne rentrait pas dans la boîte aux lettres ce matin. Je repasse ou je le mets en relais ?"
+            send_single_message(number, reply, device_id)
+            mark_message_processed(number, msg_id)
+            archive_number(number)
+            redis_conn.delete(conv_key)
+            log(f"✅ [{msg_id_short}] Réponse envoyée et conversation archivée.")
+        else:
+            log(f"🗃️ [{msg_id_short}] Conversation déjà traitée, ignoré.")
+            return
 
-        log(f"✅ [{msg_id_short}] Réponse MMS envoyée")
+        log(f"🏁 [{msg_id_short}] Fin du traitement de ce message")
 
     except Exception as e:
         log(f"💥 [{msg_id_short}] Erreur interne : {e}")

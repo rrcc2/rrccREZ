@@ -64,8 +64,9 @@ def send_single_message(number, message, device_slot):
 
 @celery.task(name="process_message")
 def process_message(msg_json):
-    log("🔧 Début de process_message")
-    log(f"🛎️ Job brut reçu : {msg_json}")
+    try:
+        log("🔧 Début de process_message")
+        log(f"🛎️ Job brut reçu : {msg_json}")
 
     try:
         msg = json.loads(msg_json)

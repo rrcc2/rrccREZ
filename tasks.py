@@ -3,18 +3,20 @@ import json
 from redis import Redis
 from logger import log
 from celery_worker import celery  # 🔁 Import du Celery app
+import random
 import re
 import unicodedata
 
-def slugify_name(name: str) -> str:
-    # enlève les accents
+def slugify_name(name):
+    if not name:
+        return str(random.randint(100000, 999999))
+
     name = unicodedata.normalize("NFKD", name)
     name = "".join(c for c in name if not unicodedata.combining(c))
-    # minuscules + garde lettres/chiffres, remplace le reste par "-"
     name = name.lower().strip()
     name = re.sub(r"[^a-z0-9]+", "-", name).strip("-")
-    return name or "noname"
-    
+
+    return name or str(random.randint(100000, 999999))
 SERVER = os.getenv("SERVER")
 API_KEY = os.getenv("API_KEY")
 SECOND_MESSAGE_LINK = os.getenv("SECOND_MESSAGE_LINK")

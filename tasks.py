@@ -3,7 +3,6 @@ import json
 from redis import Redis
 from logger import log
 from celery_worker import celery  # 🔁 Import du Celery app
-
 import re
 import unicodedata
 

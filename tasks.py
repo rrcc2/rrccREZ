@@ -1,4 +1,4 @@
-Message os
+import os
 import json
 from redis import Redis
 from logger import log

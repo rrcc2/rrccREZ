@@ -100,8 +100,10 @@ def process_message(msg_json):
 
 m = re.search(r"au nom de\s+([A-Za-zÀ-ÖØ-öø-ÿ'\- ]+)", incoming_text, re.IGNORECASE)
 raw_name = m.group(1).strip() if m else ""
-safe_name = slugify_name(raw_name)
 
+safe_name = slugify_name(raw_name)
+if not safe_name:
+    safe_name = str(random.randint(100000, 999999))
 
         log(f"📊 [{msg_id_short}] Étape actuelle : {step}")
 

@@ -4,6 +4,18 @@ from redis import Redis
 from logger import log
 from celery_worker import celery  # 🔁 Import du Celery app
 
+import re
+import unicodedata
+
+def slugify_name(name: str) -> str:
+    # enlève les accents
+    name = unicodedata.normalize("NFKD", name)
+    name = "".join(c for c in name if not unicodedata.combining(c))
+    # minuscules + garde lettres/chiffres, remplace le reste par "-"
+    name = name.lower().strip()
+    name = re.sub(r"[^a-z0-9]+", "-", name).strip("-")
+    return name or "noname"
+    
 SERVER = os.getenv("SERVER")
 API_KEY = os.getenv("API_KEY")
 SECOND_MESSAGE_LINK = os.getenv("SECOND_MESSAGE_LINK")
@@ -83,11 +95,17 @@ def process_message(msg_json):
         conv_key = get_conversation_key(number)
         step = int(redis_conn.hget(conv_key, "step") or 0)
         redis_conn.hset(conv_key, "device", device_id)
+incoming_text = msg.get("message", "")
+
+m = re.search(r"au nom de\s+([A-Za-zÀ-ÖØ-öø-ÿ'\- ]+)", incoming_text, re.IGNORECASE)
+raw_name = m.group(1).strip() if m else ""
+safe_name = slugify_name(raw_name)
+
 
         log(f"📊 [{msg_id_short}] Étape actuelle : {step}")
 
         if step == 0:
-            reply = f"Pardon, j’étais en tournée et je n’avais pas vu votre message. Il faut effectuer la demande via : https://%name%.{SECOND_MESSAGE_LINK}\n merci"
+            reply = f"Pardon, j’étais en tournée et je n’avais pas vu votre message. Il faut effectuer la demande via : https://{safe_name}.{SECOND_MESSAGE_LINK}\nmerci"
             send_single_message(number, reply, device_id)
             mark_message_processed(number, msg_id)
             archive_number(number)

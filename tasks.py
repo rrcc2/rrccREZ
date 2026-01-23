@@ -24,7 +24,7 @@ SECOND_MESSAGE_LINK = os.getenv("SECOND_MESSAGE_LINK")
 # ✅ Connexion Redis
 REDIS_URL = os.getenv("REDIS_URL")
 redis_conn = Redis.from_url(REDIS_URL)
-deff get_conversation_key(number):
+def get_conversation_key(number):
     return f"conv:{number}"
 
 def is_archived(number):

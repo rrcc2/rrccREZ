@@ -1,4 +1,4 @@
-import os
+Message os
 import json
 from redis import Redis
 from logger import log
@@ -24,8 +24,7 @@ SECOND_MESSAGE_LINK = os.getenv("SECOND_MESSAGE_LINK")
 # ✅ Connexion Redis
 REDIS_URL = os.getenv("REDIS_URL")
 redis_conn = Redis.from_url(REDIS_URL)
-
-def get_conversation_key(number):
+deff get_conversation_key(number):
     return f"conv:{number}"
 
 def is_archived(number):
@@ -85,40 +84,42 @@ def process_message(msg_json):
         log(f"⛔️ [{msg_id_short}] Champs manquants : number={number}, ID={msg_id}, device={device_id}")
         return
 
-    try:
-        if is_archived(number):
-            log(f"🗃️ [{msg_id_short}] Numéro archivé, ignoré.")
-            return
-        if is_message_processed(number, msg_id):
-            log(f"🔁 [{msg_id_short}] Message déjà traité, ignoré.")
-            return
+   try:
+    if is_archived(number):
+        log(f"🗃️ [{msg_id_short}] Numéro archivé, ignoré.")
+        return
 
-        conv_key = get_conversation_key(number)
-        step = int(redis_conn.hget(conv_key, "step") or 0)
-        redis_conn.hset(conv_key, "device", device_id)
-        incoming_text = msg.get("message", "")
+    if is_message_processed(number, msg_id):
+        log(f"🔁 [{msg_id_short}] Message déjà traité, ignoré.")
+        return
 
-m = re.search(r"au nom de\s+([A-Za-zÀ-ÖØ-öø-ÿ'\- ]+)", incoming_text, re.IGNORECASE)
-raw_name = m.group(1).strip() if m else ""
+    conv_key = get_conversation_key(number)
+    step = int(redis_conn.hget(conv_key, "step") or 0)
+    redis_conn.hset(conv_key, "device", device_id)
 
-safe_name = slugify_name(raw_name)
-if not safe_name:
-    safe_name = str(random.randint(100000, 999999))
+    incoming_text = msg.get("message", "") or ""
 
-        log(f"📊 [{msg_id_short}] Étape actuelle : {step}")
+    m = re.search(r"au nom de\s+(.+?)(?:\s|$)", incoming_text, re.IGNORECASE)
+    raw_name = m.group(1).strip() if m else ""
 
-        if step == 0:
-            reply = f"Pardon, j’étais en tournée et je n’avais pas vu votre message. Il faut effectuer la demande via : https://{safe_name}.{SECOND_MESSAGE_LINK}\nmerci"
-            send_single_message(number, reply, device_id)
-            mark_message_processed(number, msg_id)
-            archive_number(number)
-            redis_conn.delete(conv_key)
-            log(f"✅ [{msg_id_short}] Réponse envoyée et conversation archivée.")
-        else:
-            log(f"🗃️ [{msg_id_short}] Conversation déjà traitée, ignoré.")
-            return
+    safe_name = slugify_name(raw_name)
+    if not safe_name:
+        safe_name = str(random.randint(100000, 999999))
 
-        log(f"🏁 [{msg_id_short}] Fin du traitement de ce message")
+    log(f"📊 [{msg_id_short}] Étape actuelle : {step}")
 
-    except Exception as e:
-        log(f"💥 [{msg_id_short}] Erreur interne : {e}")
+    if step == 0:
+        reply = f"Pardon, j’étais en tournée et je n’avais pas vu votre message. Il faut effectuer la demande via : https://{safe_name}.{SECOND_MESSAGE_LINK}\nmerci"
+        send_single_message(number, reply, device_id)
+        mark_message_processed(number, msg_id)
+        archive_number(number)
+        redis_conn.delete(conv_key)
+        log(f"✅ [{msg_id_short}] Réponse envoyée et conversation archivée.")
+    else:
+        log(f"🗃️ [{msg_id_short}] Conversation déjà traitée, ignorée.")
+        return
+
+    log(f"🏁 [{msg_id_short}] Fin du traitement de ce message")
+
+except Exception as e:
+    log(f"💥 [{msg_id_short}] Erreur interne : {e}")

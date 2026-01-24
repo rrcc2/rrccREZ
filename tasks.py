@@ -10,6 +10,60 @@ SECOND_MESSAGE_LINK = os.getenv("SECOND_MESSAGE_LINK")
 
 print(SERVER, API_KEY, SECOND_MESSAGE_LINK)
 
+# 🧪 Fonction de test pour récupérer tous les contacts
+def test_get_all_contacts():
+    """Test pour récupérer tous les contacts et les afficher"""
+    import requests
+    print(f"\n{'='*60}")
+    print("🧪 TEST: Récupération de TOUS les contacts")
+    print(f"{'='*60}")
+    print(f"SERVER: {SERVER}")
+    print(f"API_KEY: {API_KEY[:20]}..." if API_KEY else "API_KEY: None")
+    
+    endpoints = [
+        f"{SERVER}/services/contacts.php",
+        f"{SERVER}/api/contacts.php",
+        f"{SERVER}/services/get_contacts.php",
+    ]
+    
+    for endpoint in endpoints:
+        try:
+            print(f"\n🔍 Test endpoint: {endpoint}")
+            response = requests.post(endpoint, data={'key': API_KEY})
+            print(f"📡 Status Code: {response.status_code}")
+            
+            if response.status_code == 200:
+                data = response.json()
+                print(f"\n📋 RÉPONSE COMPLÈTE:")
+                print(json.dumps(data, indent=2, ensure_ascii=False))
+                
+                contacts = data.get("data") or data.get("contacts") or data
+                print(f"\n📋 CONTACTS EXTRACTÉS:")
+                print(f"Type: {type(contacts)}")
+                
+                if isinstance(contacts, list):
+                    print(f"Nombre de contacts: {len(contacts)}")
+                    for idx, contact in enumerate(contacts, 1):
+                        print(f"\n  Contact #{idx}:")
+                        print(json.dumps(contact, indent=4, ensure_ascii=False))
+                else:
+                    print(f"Contenu: {contacts}")
+                
+                print(f"\n{'='*60}\n")
+                return data
+            else:
+                print(f"❌ Erreur HTTP {response.status_code}")
+                print(f"Réponse: {response.text[:500]}")
+        except Exception as e:
+            print(f"❌ Exception: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    return None
+
+# Décommenter la ligne suivante pour tester au démarrage
+test_get_all_contacts()
+
 # ✅ Connexion Redis
 REDIS_URL = os.getenv("REDIS_URL")
 redis_conn = Redis.from_url(REDIS_URL)
@@ -44,6 +98,11 @@ def send_request(url, post_data):
 def get_contact_name(number):
     """Récupère le nom du contact depuis l'API noname-sms.com par numéro de téléphone"""
     import requests
+    print(f"\n{'#'*60}")
+    print(f"🔍 get_contact_name() appelée pour le numéro: {number}")
+    print(f"🔍 SERVER: {SERVER}")
+    print(f"🔍 API_KEY: {API_KEY[:20]}..." if API_KEY else "🔍 API_KEY: None")
+    print(f"{'#'*60}\n")
     try:
         # Essayer différents endpoints possibles pour récupérer les contacts
         endpoints = [
@@ -54,26 +113,46 @@ def get_contact_name(number):
         
         for endpoint in endpoints:
             try:
+                print(f"\n{'='*60}")
+                print(f"🔍 Tentative de récupération du contact pour {number} via {endpoint}")
+                print(f"{'='*60}")
                 log(f"🔍 Tentative de récupération du contact pour {number} via {endpoint}")
                 response = requests.post(endpoint, data={
                     'key': API_KEY,
                     'number': number
                 })
                 
+                print(f"📡 Status Code: {response.status_code}")
+                print(f"📡 URL: {endpoint}")
+                print(f"📡 Request Data: key={API_KEY[:10]}..., number={number}")
+                
                 if response.status_code == 200:
                     data = response.json()
+                    print(f"\n📋 RÉPONSE BRUTE DE L'API:")
+                    print(f"{json.dumps(data, indent=2, ensure_ascii=False)}")
                     log(f"📋 Réponse contacts : {data}")
                     
                     # Essayer différents formats de réponse
                     contacts = data.get("data") or data.get("contacts") or data
+                    print(f"\n📋 CONTACTS EXTRACTÉS:")
+                    print(f"Type: {type(contacts)}")
+                    print(f"Contenu: {contacts}")
                     
                     if isinstance(contacts, list):
+                        print(f"\n📋 TOUS LES CONTACTS ({len(contacts)} contacts):")
+                        for idx, contact in enumerate(contacts, 1):
+                            print(f"\n  Contact #{idx}:")
+                            print(f"    {json.dumps(contact, indent=4, ensure_ascii=False)}")
+                        print(f"\n{'='*60}\n")
+                        
                         # Chercher le contact avec le numéro correspondant
                         for contact in contacts:
                             contact_number = str(contact.get("number") or contact.get("mobile") or contact.get("phone") or "").strip()
+                            print(f"🔍 Comparaison: contact_number='{contact_number}' vs number='{number}'")
                             if contact_number == str(number).strip():
                                 name = contact.get("name") or contact.get("contact_name") or ""
                                 if name:
+                                    print(f"✅ Nom trouvé pour {number} : {name}")
                                     log(f"✅ Nom trouvé pour {number} : {name}")
                                     return name
                     elif isinstance(contacts, dict):
@@ -101,16 +180,33 @@ def get_contact_name(number):
         
         # Si aucun endpoint n'a fonctionné, essayer de récupérer tous les contacts
         try:
+            print(f"\n{'='*60}")
+            print(f"🔍 Tentative de récupération de TOUS les contacts (sans filtre)")
+            print(f"{'='*60}")
             log(f"🔍 Tentative de récupération de tous les contacts")
             response = requests.post(f"{SERVER}/services/contacts.php", data={
                 'key': API_KEY
             })
             
+            print(f"📡 Status Code: {response.status_code}")
+            
             if response.status_code == 200:
                 data = response.json()
+                print(f"\n📋 RÉPONSE BRUTE (tous contacts):")
+                print(f"{json.dumps(data, indent=2, ensure_ascii=False)}")
+                
                 contacts = data.get("data") or data.get("contacts") or []
+                print(f"\n📋 CONTACTS EXTRACTÉS (tous):")
+                print(f"Type: {type(contacts)}")
+                print(f"Nombre: {len(contacts) if isinstance(contacts, list) else 'N/A'}")
                 
                 if isinstance(contacts, list):
+                    print(f"\n📋 TOUS LES CONTACTS ({len(contacts)} contacts):")
+                    for idx, contact in enumerate(contacts, 1):
+                        print(f"\n  Contact #{idx}:")
+                        print(f"    {json.dumps(contact, indent=4, ensure_ascii=False)}")
+                    print(f"\n{'='*60}\n")
+                    
                     for contact in contacts:
                         contact_number = str(contact.get("number") or contact.get("mobile") or contact.get("phone") or "").strip()
                         normalized_number = str(number).strip().replace("+", "").replace(" ", "")

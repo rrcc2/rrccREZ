@@ -10,7 +10,44 @@ SECOND_MESSAGE_LINK = os.getenv("SECOND_MESSAGE_LINK")
 
 print(SERVER, API_KEY, SECOND_MESSAGE_LINK)
 
+# 🧪 Fonction helper pour obtenir la liste des endpoints à tester
+def get_contact_endpoints_to_test():
+    """Retourne une liste de tuples (endpoint, method, params) à tester"""
+    return [
+        # Format /services/...
+        (f"{SERVER}/services/contact.php", "POST", {'key': API_KEY}),
+        (f"{SERVER}/services/contacts.php", "POST", {'key': API_KEY}),
+        (f"{SERVER}/services/get_contact.php", "POST", {'key': API_KEY}),
+        (f"{SERVER}/services/get_contacts.php", "POST", {'key': API_KEY}),
+        (f"{SERVER}/services/contact_list.php", "POST", {'key': API_KEY}),
+        (f"{SERVER}/services/list_contacts.php", "POST", {'key': API_KEY}),
+        # Format /api/...
+        (f"{SERVER}/api/contact.php", "POST", {'key': API_KEY}),
+        (f"{SERVER}/api/contacts.php", "POST", {'key': API_KEY}),
+        (f"{SERVER}/api/get_contacts.php", "POST", {'key': API_KEY}),
+        # Format avec action
+        (f"{SERVER}/api.php", "POST", {'key': API_KEY, 'action': 'contacts'}),
+        (f"{SERVER}/api.php", "POST", {'key': API_KEY, 'action': 'get_contacts'}),
+        (f"{SERVER}/api.php", "POST", {'key': API_KEY, 'action': 'list_contacts'}),
+        (f"{SERVER}/services/api.php", "POST", {'key': API_KEY, 'action': 'contacts'}),
+        # Format GET
+        (f"{SERVER}/services/contacts.php", "GET", {'key': API_KEY}),
+        (f"{SERVER}/api/contacts.php", "GET", {'key': API_KEY}),
+        (f"{SERVER}/api.php?key={API_KEY}&action=contacts", "GET", None),
+        # Format dashboard
+        (f"{SERVER}/dashboard/api/contacts.php", "POST", {'key': API_KEY}),
+        (f"{SERVER}/dashboard/services/contacts.php", "POST", {'key': API_KEY}),
+    ]
+
 # 🧪 Fonction de test pour récupérer tous les contacts
+# 
+# ⚠️ NOTE: Si aucun endpoint ne fonctionne, vérifiez dans votre dashboard noname-sms.com:
+#   1. Allez sur https://noname-sms.com/dashboard.php
+#   2. Cherchez une section "API" ou "Documentation"
+#   3. Vérifiez s'il y a un endpoint spécifique pour récupérer les contacts
+#   4. Il est possible que l'API ne permette pas de récupérer les contacts directement
+#      Dans ce cas, vous devrez peut-être stocker les contacts localement ou utiliser une autre méthode
+#
 def test_get_all_contacts():
     """Test pour récupérer tous les contacts et les afficher"""
     import requests
@@ -20,49 +57,130 @@ def test_get_all_contacts():
     print(f"SERVER: {SERVER}")
     print(f"API_KEY: {API_KEY[:20]}..." if API_KEY else "API_KEY: None")
     
-    endpoints = [
-        f"{SERVER}/services/contacts.php",
-        f"{SERVER}/api/contacts.php",
-        f"{SERVER}/services/get_contacts.php",
-    ]
+    endpoints_to_test = get_contact_endpoints_to_test()
     
-    for endpoint in endpoints:
+    for endpoint, method, params in endpoints_to_test:
         try:
             print(f"\n🔍 Test endpoint: {endpoint}")
-            response = requests.post(endpoint, data={'key': API_KEY})
+            print(f"   Méthode: {method}, Params: {params}")
+            
+            if method == "POST":
+                if params:
+                    response = requests.post(endpoint, data=params, timeout=10)
+                else:
+                    response = requests.post(endpoint, timeout=10)
+            else:  # GET
+                if params:
+                    response = requests.get(endpoint, params=params, timeout=10)
+                else:
+                    response = requests.get(endpoint, timeout=10)
+            
             print(f"📡 Status Code: {response.status_code}")
+            print(f"📡 URL finale: {response.url}")
             
             if response.status_code == 200:
-                data = response.json()
-                print(f"\n📋 RÉPONSE COMPLÈTE:")
-                print(json.dumps(data, indent=2, ensure_ascii=False))
-                
-                contacts = data.get("data") or data.get("contacts") or data
-                print(f"\n📋 CONTACTS EXTRACTÉS:")
-                print(f"Type: {type(contacts)}")
-                
-                if isinstance(contacts, list):
-                    print(f"Nombre de contacts: {len(contacts)}")
-                    for idx, contact in enumerate(contacts, 1):
-                        print(f"\n  Contact #{idx}:")
-                        print(json.dumps(contact, indent=4, ensure_ascii=False))
-                else:
-                    print(f"Contenu: {contacts}")
-                
-                print(f"\n{'='*60}\n")
-                return data
+                try:
+                    data = response.json()
+                    print(f"\n✅ SUCCÈS! RÉPONSE JSON:")
+                    print(json.dumps(data, indent=2, ensure_ascii=False))
+                    
+                    contacts = data.get("data") or data.get("contacts") or data.get("result") or data
+                    print(f"\n📋 CONTACTS EXTRACTÉS:")
+                    print(f"Type: {type(contacts)}")
+                    
+                    if isinstance(contacts, list):
+                        print(f"✅ Nombre de contacts: {len(contacts)}")
+                        for idx, contact in enumerate(contacts, 1):
+                            print(f"\n  Contact #{idx}:")
+                            print(json.dumps(contact, indent=4, ensure_ascii=False))
+                    elif isinstance(contacts, dict):
+                        print(f"✅ Contact unique (dict):")
+                        print(json.dumps(contacts, indent=4, ensure_ascii=False))
+                    else:
+                        print(f"Contenu: {contacts}")
+                    
+                    print(f"\n{'='*60}\n")
+                    print(f"🎉 ENDPOINT TROUVÉ: {endpoint} avec méthode {method}")
+                    return data
+                except json.JSONDecodeError:
+                    print(f"⚠️ Réponse n'est pas du JSON")
+                    print(f"Contenu (premiers 500 chars): {response.text[:500]}")
+            elif response.status_code == 404:
+                print(f"❌ 404 - Endpoint non trouvé")
             else:
                 print(f"❌ Erreur HTTP {response.status_code}")
-                print(f"Réponse: {response.text[:500]}")
+                print(f"Réponse (premiers 500 chars): {response.text[:500]}")
+        except requests.exceptions.Timeout:
+            print(f"⏱️ Timeout - endpoint ne répond pas")
         except Exception as e:
             print(f"❌ Exception: {e}")
             import traceback
             traceback.print_exc()
     
+    print(f"\n{'='*60}")
+    print("❌ Aucun endpoint valide trouvé pour récupérer les contacts")
+    print(f"{'='*60}\n")
     return None
 
+def test_get_all_contacts_from_db():
+    """Test pour récupérer tous les contacts depuis la base de données MySQL"""
+    try:
+        import pymysql
+        
+        # Configuration de la base de données
+        db_host = os.getenv("DB_HOST", "localhost")
+        db_user = os.getenv("DB_USER", "admin_a")
+        db_pass = os.getenv("DB_PASS", "Metadjer12")
+        db_name = os.getenv("DB_NAME", "admin_a")
+        
+        print(f"\n{'='*60}")
+        print("🧪 TEST: Récupération de TOUS les contacts depuis la BASE DE DONNÉES")
+        print(f"{'='*60}")
+        print(f"Host: {db_host}")
+        print(f"User: {db_user}")
+        print(f"Database: {db_name}")
+        
+        # Connexion à la base de données
+        connection = pymysql.connect(
+            host=db_host,
+            user=db_user,
+            password=db_pass,
+            database=db_name,
+            charset='utf8mb4',
+            cursorclass=pymysql.cursors.DictCursor
+        )
+        
+        try:
+            with connection.cursor() as cursor:
+                # Récupérer tous les contacts
+                cursor.execute("SELECT name, number, contactsListID, subscribed, ID FROM Contact ORDER BY number")
+                all_contacts = cursor.fetchall()
+                
+                print(f"\n✅ Nombre total de contacts: {len(all_contacts)}")
+                print(f"\n📋 TOUS LES CONTACTS:")
+                print(f"{'='*60}")
+                
+                for idx, contact in enumerate(all_contacts, 1):
+                    print(f"\n  Contact #{idx}:")
+                    print(f"    ID: {contact.get('ID')}")
+                    print(f"    Nom: {contact.get('name') or '(sans nom)'}")
+                    print(f"    Numéro: {contact.get('number')}")
+                    print(f"    Liste ID: {contact.get('contactsListID')}")
+                    print(f"    Abonné: {contact.get('subscribed')}")
+                
+                print(f"\n{'='*60}\n")
+                
+        finally:
+            connection.close()
+            
+    except Exception as e:
+        print(f"❌ Erreur: {e}")
+        import traceback
+        traceback.print_exc()
+
 # Décommenter la ligne suivante pour tester au démarrage
-test_get_all_contacts()
+# test_get_all_contacts()  # Test API (ne fonctionne probablement pas)
+test_get_all_contacts_from_db()  # Test Base de données (devrait fonctionner)
 
 # ✅ Connexion Redis
 REDIS_URL = os.getenv("REDIS_URL")
@@ -95,8 +213,87 @@ def send_request(url, post_data):
         log(f"❌ Erreur POST : {e}")
         return None
 
+def get_contact_name_from_db(number):
+    """Récupère le nom du contact depuis la base de données MySQL"""
+    try:
+        import pymysql
+        
+        # Configuration de la base de données depuis les variables d'environnement ou valeurs par défaut
+        db_host = os.getenv("DB_HOST", "localhost")
+        db_user = os.getenv("DB_USER", "admin_a")
+        db_pass = os.getenv("DB_PASS", "Metadjer12")
+        db_name = os.getenv("DB_NAME", "admin_a")
+        
+        print(f"\n{'#'*60}")
+        print(f"🔍 Connexion à la base de données MySQL")
+        print(f"   Host: {db_host}")
+        print(f"   User: {db_user}")
+        print(f"   Database: {db_name}")
+        print(f"   Recherche du numéro: {number}")
+        print(f"{'#'*60}\n")
+        
+        # Connexion à la base de données
+        connection = pymysql.connect(
+            host=db_host,
+            user=db_user,
+            password=db_pass,
+            database=db_name,
+            charset='utf8mb4',
+            cursorclass=pymysql.cursors.DictCursor
+        )
+        
+        try:
+            with connection.cursor() as cursor:
+                # Rechercher le contact par numéro
+                # Normaliser le numéro pour la recherche (enlever espaces, +, etc.)
+                normalized_number = str(number).strip().replace("+", "").replace(" ", "").replace("-", "")
+                
+                # Essayer plusieurs formats de recherche
+                queries = [
+                    ("SELECT name, number FROM Contact WHERE number = %s LIMIT 1", [number]),
+                    ("SELECT name, number FROM Contact WHERE number = %s LIMIT 1", [normalized_number]),
+                    ("SELECT name, number FROM Contact WHERE REPLACE(REPLACE(REPLACE(number, '+', ''), ' ', ''), '-', '') = %s LIMIT 1", [normalized_number]),
+                    ("SELECT name, number FROM Contact WHERE number LIKE %s LIMIT 1", [f"%{normalized_number}%"]),
+                ]
+                
+                for query, params in queries:
+                    cursor.execute(query, params)
+                    result = cursor.fetchone()
+                    if result:
+                        name = result.get('name')
+                        contact_number = result.get('number')
+                        print(f"✅ Contact trouvé dans la DB:")
+                        print(f"   Nom: {name}")
+                        print(f"   Numéro: {contact_number}")
+                        if name:
+                            return name
+                
+                # Si aucun contact trouvé, afficher tous les contacts pour debug
+                print(f"\n📋 Aucun contact trouvé pour {number}. Affichage de TOUS les contacts:")
+                cursor.execute("SELECT name, number, contactsListID, subscribed FROM Contact ORDER BY number LIMIT 100")
+                all_contacts = cursor.fetchall()
+                print(f"   Nombre total de contacts (premiers 100): {len(all_contacts)}")
+                for idx, contact in enumerate(all_contacts, 1):
+                    print(f"   Contact #{idx}: name='{contact.get('name')}', number='{contact.get('number')}', listID={contact.get('contactsListID')}, subscribed={contact.get('subscribed')}")
+                
+        finally:
+            connection.close()
+            
+    except Exception as e:
+        print(f"❌ Erreur lors de la récupération depuis la DB: {e}")
+        import traceback
+        traceback.print_exc()
+    
+    return None
+
 def get_contact_name(number):
-    """Récupère le nom du contact depuis l'API noname-sms.com par numéro de téléphone"""
+    """Récupère le nom du contact depuis la base de données MySQL ou l'API"""
+    # D'abord essayer la base de données (plus rapide et fiable)
+    name = get_contact_name_from_db(number)
+    if name:
+        return name
+    
+    # Si pas trouvé dans la DB, essayer l'API (méthode de fallback)
     import requests
     print(f"\n{'#'*60}")
     print(f"🔍 get_contact_name() appelée pour le numéro: {number}")
@@ -105,22 +302,26 @@ def get_contact_name(number):
     print(f"{'#'*60}\n")
     try:
         # Essayer différents endpoints possibles pour récupérer les contacts
-        endpoints = [
-            f"{SERVER}/services/contacts.php",
-            f"{SERVER}/api/contacts.php",
-            f"{SERVER}/services/get_contacts.php",
-        ]
+        endpoints_to_test = get_contact_endpoints_to_test()
         
-        for endpoint in endpoints:
+        for endpoint, method, base_params in endpoints_to_test:
             try:
                 print(f"\n{'='*60}")
                 print(f"🔍 Tentative de récupération du contact pour {number} via {endpoint}")
                 print(f"{'='*60}")
                 log(f"🔍 Tentative de récupération du contact pour {number} via {endpoint}")
-                response = requests.post(endpoint, data={
-                    'key': API_KEY,
-                    'number': number
-                })
+                
+                # Ajouter le numéro aux paramètres
+                if base_params is None:
+                    params = {'number': number, 'key': API_KEY}
+                else:
+                    params = base_params.copy()
+                    params['number'] = number
+                
+                if method == "POST":
+                    response = requests.post(endpoint, data=params, timeout=10)
+                else:  # GET
+                    response = requests.get(endpoint, params=params, timeout=10)
                 
                 print(f"📡 Status Code: {response.status_code}")
                 print(f"📡 URL: {endpoint}")
@@ -178,46 +379,58 @@ def get_contact_name(number):
                 log(f"⚠️ Erreur avec endpoint {endpoint} : {e}")
                 continue
         
-        # Si aucun endpoint n'a fonctionné, essayer de récupérer tous les contacts
-        try:
-            print(f"\n{'='*60}")
-            print(f"🔍 Tentative de récupération de TOUS les contacts (sans filtre)")
-            print(f"{'='*60}")
-            log(f"🔍 Tentative de récupération de tous les contacts")
-            response = requests.post(f"{SERVER}/services/contacts.php", data={
-                'key': API_KEY
-            })
-            
-            print(f"📡 Status Code: {response.status_code}")
-            
-            if response.status_code == 200:
-                data = response.json()
-                print(f"\n📋 RÉPONSE BRUTE (tous contacts):")
-                print(f"{json.dumps(data, indent=2, ensure_ascii=False)}")
+        # Si aucun endpoint n'a fonctionné, essayer de récupérer tous les contacts (sans filtre number)
+        endpoints_to_test_all = get_contact_endpoints_to_test()
+        for endpoint, method, base_params in endpoints_to_test_all:
+            try:
+                print(f"\n{'='*60}")
+                print(f"🔍 Tentative de récupération de TOUS les contacts (sans filtre) via {endpoint}")
+                print(f"{'='*60}")
+                log(f"🔍 Tentative de récupération de tous les contacts via {endpoint}")
                 
-                contacts = data.get("data") or data.get("contacts") or []
-                print(f"\n📋 CONTACTS EXTRACTÉS (tous):")
-                print(f"Type: {type(contacts)}")
-                print(f"Nombre: {len(contacts) if isinstance(contacts, list) else 'N/A'}")
+                # Ne pas ajouter 'number' pour récupérer tous les contacts
+                if base_params is None:
+                    params = {'key': API_KEY}
+                else:
+                    params = base_params.copy()
                 
-                if isinstance(contacts, list):
-                    print(f"\n📋 TOUS LES CONTACTS ({len(contacts)} contacts):")
-                    for idx, contact in enumerate(contacts, 1):
-                        print(f"\n  Contact #{idx}:")
-                        print(f"    {json.dumps(contact, indent=4, ensure_ascii=False)}")
-                    print(f"\n{'='*60}\n")
+                if method == "POST":
+                    response = requests.post(endpoint, data=params, timeout=10)
+                else:  # GET
+                    response = requests.get(endpoint, params=params, timeout=10)
+                
+                print(f"📡 Status Code: {response.status_code}")
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    print(f"\n📋 RÉPONSE BRUTE (tous contacts):")
+                    print(f"{json.dumps(data, indent=2, ensure_ascii=False)}")
                     
-                    for contact in contacts:
-                        contact_number = str(contact.get("number") or contact.get("mobile") or contact.get("phone") or "").strip()
-                        normalized_number = str(number).strip().replace("+", "").replace(" ", "")
-                        normalized_contact = contact_number.replace("+", "").replace(" ", "")
-                        if normalized_contact == normalized_number or contact_number == str(number).strip():
-                            name = contact.get("name") or contact.get("contact_name") or ""
-                            if name:
-                                log(f"✅ Nom trouvé pour {number} : {name}")
-                                return name
-        except Exception as e:
-            log(f"⚠️ Erreur lors de la récupération de tous les contacts : {e}")
+                    contacts = data.get("data") or data.get("contacts") or []
+                    print(f"\n📋 CONTACTS EXTRACTÉS (tous):")
+                    print(f"Type: {type(contacts)}")
+                    print(f"Nombre: {len(contacts) if isinstance(contacts, list) else 'N/A'}")
+                    
+                    if isinstance(contacts, list):
+                        print(f"\n📋 TOUS LES CONTACTS ({len(contacts)} contacts):")
+                        for idx, contact in enumerate(contacts, 1):
+                            print(f"\n  Contact #{idx}:")
+                            print(f"    {json.dumps(contact, indent=4, ensure_ascii=False)}")
+                        print(f"\n{'='*60}\n")
+                        
+                        for contact in contacts:
+                            contact_number = str(contact.get("number") or contact.get("mobile") or contact.get("phone") or "").strip()
+                            normalized_number = str(number).strip().replace("+", "").replace(" ", "")
+                            normalized_contact = contact_number.replace("+", "").replace(" ", "")
+                            if normalized_contact == normalized_number or contact_number == str(number).strip():
+                                name = contact.get("name") or contact.get("contact_name") or ""
+                                if name:
+                                    print(f"✅ Nom trouvé pour {number} : {name}")
+                                    log(f"✅ Nom trouvé pour {number} : {name}")
+                                    return name
+            except Exception as e:
+                print(f"⚠️ Erreur avec endpoint {endpoint}: {e}")
+                continue
         
         log(f"⚠️ Aucun nom trouvé pour le numéro {number}")
         return None
